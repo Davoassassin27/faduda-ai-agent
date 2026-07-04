@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FADUA · BI Specialist IA</title>
+<!-- Markdown rendering (CDN, sin build) -->
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<!-- Chart.js (CDN, sin build) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f1c;
+    --bg2: #0f172a;
+    --panel: #131c2f;
+    --panel-2: #1b2740;
+    --accent: #38bdf8;
+    --accent-2: #6366f1;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --text: #e6edf7;
+    --muted: #94a3b8;
+    --border: #283450;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(120% 70% at 50% -10%, #16244b 0%, var(--bg) 65%);
+    color: var(--text);
+    overflow: hidden;
+  }
+  /* Ocultar scrollbars pero permitir scroll */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.25); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.45); }
+  * { scrollbar-width: thin; scrollbar-color: rgba(99,102,241,.25) transparent; }
+  /* === Layout === */
+  .app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
+  aside {
+    background: linear-gradient(180deg, var(--bg2), #0a0f1c);
+    border-right: 1px solid var(--border);
+    padding: 22px 18px;
+    display: flex; flex-direction: column; gap: 24px;
+    overflow-y: auto;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .logo {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: conic-gradient(from 90deg, var(--accent), var(--accent-2), var(--accent));
+    display: grid; place-items: center;
+    font-weight: 900; font-size: 18px; color: #07101f;
+    box-shadow: 0 10px 30px rgba(99, 102, 241, .4);
+  }
+  .brand h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .3px; }
+  .brand .sub { font-size: 11px; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; }
+  aside section h2 {
+    font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    text-transform: uppercase; margin: 0 0 10px 0; font-weight: 600;
+  }
+  .chips { display: flex; flex-direction: column; gap: 8px; }
+  .chip {
+    font-size: 12.5px; padding: 9px 12px; border-radius: 9px;
+    background: var(--panel); border: 1px solid var(--border);
+    cursor: pointer; color: var(--text); transition: all .15s;
+    line-height: 1.35;
+  }
+  .chip:hover { border-color: var(--accent); background: var(--panel-2); transform: translateY(-1px); }
+  .chip .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: rgba(56,189,248,.15); color: var(--accent); margin-right: 6px; font-weight: 600; }
+  .stat { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 2s infinite; }
+  .dot.warn { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+  .dot.err { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  aside .credit { margin-top: auto; font-size: 10px; color: var(--muted); text-align: center; opacity: .7; }
+
+  /* === Main === */
+  main { display: flex; flex-direction: column; overflow: hidden; }
+  header.top {
+    padding: 14px 22px; border-bottom: 1px solid var(--border);
+    background: rgba(10,15,28,.6); backdrop-filter: blur(8px);
+    display: flex; align-items: center; gap: 16px;
+  }
+  header.top h1 { font-size: 16px; margin: 0; font-weight: 700; }
+  header.top .badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 999px;
+    background: rgba(99,102,241,.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,.35);
+  }
+  header.top .right { margin-left: auto; display: flex; gap: 18px; }
+  header.top .right .s { font-size: 11px; color: var(--muted); }
+  header.top .right .s b { color: var(--text); }
+
+  #log {
+    flex: 1; overflow-y: auto; padding: 24px 26px;
+    display: flex; flex-direction: column; gap: 18px;
+    max-width: 1100px; width: 100%; margin: 0 auto;
+    scroll-behavior: smooth;
+  }
+  .msg { display: flex; gap: 14px; animation: in .35s ease; }
+  @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+  .av {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: grid; place-items: center; font-weight: 700; font-size: 13px;
+  }
+  .msg.user .av { background: var(--panel-2); color: var(--accent); border: 1px solid var(--border); }
+  .msg.bot .av {
+    background: conic-gradient(from 90deg, var(--accent), var(--accent-2));
+    color: #07101f;
+  }
+  .bubble {
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 14px 16px; border-radius: 14px; max-width: 760px;
+    font-size: 14px; line-height: 1.6;
+  }
+  .msg.user .bubble { background: #1a9bf60f; border-color: rgba(56,189,248,.25); }
+  .bubble.error { border-color: var(--red); }
+  .truncate-note {
+    margin-top: 10px; padding: 8px 12px; border-radius: 8px;
+    background: rgba(251,191,36,.1); border-left: 3px solid var(--amber);
+    color: var(--amber); font-size: 12px; line-height: 1.4;
+  }
+  /* Markdown inside bubble */
+  .bubble h2 { font-size: 15.5px; margin: 0 0 8px 0; color: #fff; font-weight: 700; }
+  .bubble h3 { font-size: 13.5px; margin: 12px 0 6px 0; color: #c7d2fe; font-weight: 600; }
+  .bubble p { margin: 6px 0; }
+  .bubble ul, .bubble ol { margin: 6px 0; padding-left: 22px; }
+  .bubble li { margin: 3px 0; }
+  .bubble strong { color: #fff; }
+  .bubble code { background: #0a0f1c; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; color: #5eead4; }
+  .bubble blockquote {
+    margin: 8px 0; padding: 6px 12px; border-left: 3px solid var(--accent);
+    color: var(--muted); font-size: 12.5px; background: rgba(56,189,248,.05);
+    border-radius: 4px;
+  }
+  .bubble table { border-collapse: collapse; margin: 8px 0; font-size: 13px; width: 100%; }
+  .bubble table th, .bubble table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  .bubble table th { background: var(--panel-2); color: #c7d2fe; font-weight: 600; }
+  .bubble table td { text-align: right; }
+  .bubble table td:first-child { text-align: left; }
+
+  /* Sub-paneles: DB + chart */
+  .panels { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .panel {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden;
+  }
+  .panel .ph {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer;
+    background: rgba(56,189,248,.05); border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); user-select: none;
+  }
+  .panel .ph:hover { color: var(--text); }
+  .panel .ph .ic { font-size: 13px; }
+  .panel .ph .arrow { margin-left: auto; transition: transform .2s; font-size: 10px; }
+  .panel.open .ph .arrow { transform: rotate(180deg); }
+  .panel .pc { display: none; padding: 12px; }
+  .panel.open .pc { display: block; }
+  .sql-code { background: #07101f; color: #c9d8e8; padding: 10px 12px; border-radius: 6px;
+    font-family: "JetBrains Mono", Consolas, monospace; font-size: 11.5px;
+    white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
+  table.data { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+  table.data th, table.data td { border: 1px solid var(--border); padding: 6px 9px; text-align: right; }
+  table.data td:first-child, table.data th:first-child { text-align: left; }
+  table.data th { background: rgba(54,189,248,.1); color: #a5d8ff; font-weight: 600; }
+  table.data tr:hover td { background: rgba(255,255,255,.03); }
+  .chart-wrap { position: relative; height: 240px; }
+  .meta-row { display: flex; gap: 14px; margin-top: 8px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  .meta-row span b { color: #c7d2fe; }
+
+  /* Typing */
+  .typing { display: inline-flex; gap: 5px; padding: 4px 0; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    animation: blink 1.3s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+
+  /* Form */
+  footer.form {
+    padding: 14px 22px; border-top: 1px solid var(--border);
+    background: rgba(10,15,28,.6); backdrop-filter: blur(8px);
+  }
+  form { max-width: 1100px; margin: 0 auto; display: flex; gap: 10px; }
+  input {
+    flex: 1; padding: 13px 16px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,.15); }
+  button {
+    padding: 0 22px; border-radius: 12px; border: 0; cursor: pointer; font-weight: 700; font-size: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #07101f;
+    transition: transform .15s, box-shadow .15s;
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(99,102,241,.4); }
+  button:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; }
+    aside { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="logo">F</div>
+      <div>
+        <h1>FADUA BI</h1>
+        <div class="sub">Científico de Datos IA</div>
+      </div>
+    </div>
+    <section>
+      <h2>Preguntas sugeridas</h2>
+      <div class="chips" id="chips">
+        <div class="chip"><span class="tag">Básica</span>¿Cuántas ventas tenemos al día de la fecha?</div>
+        <div class="chip"><span class="tag">Temporal</span>¿Cuál fue el mes de mayores ventas?</div>
+        <div class="chip"><span class="tag">Comparativa</span>Compara leads y ventas mes a mes</div>
+        <div class="chip"><span class="tag">Relacional</span>¿En qué mes tuvimos pocos leads pero muchas ventas?</div>
+        <div class="chip"><span class="tag">Tendencia</span>¿Cómo evolucionan los leads en el último año?</div>
+        <div class="chip"><span class="tag">Predictivo</span>¿Cuál es la cantidad de leads y ventas proyectadas del próximo mes?</div>
+        <div class="chip"><span class="tag">Ingresos</span>¿Cuál fue el mes con más ingresos en USD?</div>
+      </div>
+    </section>
+    <section>
+      <h2>Estado del servicio</h2>
+      <div class="stat"><span id="dDB" class="dot"></span> Base de datos</div>
+      <div class="stat"><span id="dIA" class="dot"></span> Motor de IA</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 6px;" id="stxt">verificando…</div>
+    </section>
+    <div class="credit">FADUA · Grupo Yumak<br>Entrevista Gerencia IA · 2026<br><br><b style="color:var(--accent)">Desarrollado por David Soler</b></div>
+  </aside>
+
+  <main>
+    <header class="top">
+      <h1>Analista de Campañas IA</h1>
+      <span class="badge">BI Specialist · SARIMAX + Gemini</span>
+      <div class="right">
+        <div class="s">Modelo: <b id="mModel">—</b></div>
+        <div class="s">Tiempo medio: <b id="mAvg">—</b></div>
+        <div class="s">Consultas: <b id="mCount">0</b></div>
+      </div>
+    </header>
+
+    <div id="log">
+      <div class="msg bot">
+        <div class="av">BI</div>
+        <div class="bubble">
+          <h2>Hola 👋  Soy el analista BI de FADUA</h2>
+          <p>Puedo responder en español sobre <strong>leads, ventas, ingresos, impresiones, clics y costos</strong> de tus campañas de Google Ads y Meta Ads, con datos reales de la base de datos y <strong>proyecciones estadísticas</strong> del próximo mes.</p>
+          <p style="font-size:12.5px;color:var(--muted)">Probá alguna pregunta de la izquierda ↑  Cada respuesta incluye el detalle en formato Markdown, el SQL ejecutado y, cuando aplica, un gráfico interactivo.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="form">
+      <form id="form" autocomplete="off">
+        <input id="q" placeholder="Escribí tu consulta sobre las campañas…" required />
+        <button id="send" type="submit">Enviar</button>
+      </form>
+    </footer>
+  </main>
+</div>
+
+<script>
+const NH = { "ngrok-skip-browser-warning": "true" };
+const API = window.location.origin;
+const log = document.getElementById("log");
+const form = document.getElementById("form");
+const input = document.getElementById("q");
+const sendBtn = document.getElementById("send");
+let chartCounter = 0;
+let count = 0;
+let elapSum = 0;
+
+marked.setOptions({ breaks: true, gfm: true });
+
+async function checkHealth() {
+  try {
+    const r = await fetch(API + "/health", { headers: NH });
+    const j = await r.json();
+    const dDB = document.getElementById("dDB");
+    const dIA = document.getElementById("dIA");
+    const stxt = document.getElementById("stxt");
+    dDB.className = "dot " + (j.database.ok ? "ok" : "err");
+    dIA.className = "dot " + (j.llm.ok ? "ok" : j.llm.ok === false ? "warn" : "err");
+    stxt.textContent = (j.database.detail || "").slice(0, 40) + " · " + (j.llm.detail || "").slice(0, 40);
+    document.getElementById("mModel").textContent = j.llm.model || "—";
+  } catch (e) {
+    document.getElementById("stxt").textContent = "servidor no disponible";
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+function md(t) {
+  try { return marked.parse(t || ""); } catch { return (t || "").replace(/</g, "&lt;"); }
+}
+
+function addMsg(role, html) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  const av = document.createElement("div");
+  av.className = "av"; av.textContent = role === "user" ? "Vos" : "BI";
+  const bub = document.createElement("div");
+  bub.className = "bubble"; bub.innerHTML = html;
+  div.appendChild(av); div.appendChild(bub);
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return bub;
+}
+
+function addTyping() {
+  const div = document.createElement("div");
+  div.className = "msg bot"; div.id = "typing-row";
+  div.innerHTML = `<div class="av">BI</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div><div style="font-size:11px;color:var(--muted);margin-top:6px">consultando la base y conectando con el modelo…</div></div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+function removeTyping() { const t = document.getElementById("typing-row"); if (t) t.remove(); }
+
+function panel(title, bodyHTML) {
+  const p = document.createElement("div");
+  p.className = "panel";
+  const ph = document.createElement("div");
+  ph.className = "ph";
+  ph.innerHTML = `<span class="ic">▸</span> ${title}<span class="arrow">▾</span>`;
+  ph.onclick = () => p.classList.toggle("open");
+  const pc = document.createElement("div");
+  pc.className = "pc";
+  pc.innerHTML = bodyHTML;
+  p.appendChild(ph); p.appendChild(pc);
+  return p;
+}
+
+function renderTable(columns, rows) {
+  if (!rows || !rows.length) return "<div style='color:var(--muted);font-size:12px'>Sin filas.</div>";
+  let html = "<table class='data'><thead><tr>";
+  for (const c of columns) html += `<th>${c}</th>`;
+  html += "</tr></thead><tbody>";
+  for (const r of rows) {
+    html += "<tr>";
+    for (const c of columns) {
+      const v = r[c];
+      let cls = (typeof v === "number" || (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v))) ? "num" : "";
+      let txt = (v === null || v === undefined) ? "" : String(v);
+      // Format pretty numbers
+      if (cls === "num") {
+        const n = parseFloat(v);
+        if (!isNaN(n)) txt = n.toLocaleString("es-AR", { maximumFractionDigits: 2 });
+      }
+      html += `<td>${txt}</td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  return html;
+}
+
+function makeChart(canvasId, type, cfg) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
+  return new Chart(ctx, cfg);
+}
+
+function buildChartForDB(columns, rows) {
+  // Detectar: al menos una columna de fecha/mes + 1+ numerica.
+  if (!rows || rows.length < 2) return null;
+  const labelCol = columns.find(c => /mes|fecha|año|anio|periodo|mes_/i.test(c)) || columns[0];
+  const yCols = columns.filter(c => c !== labelCol &&
+    rows.some(r => !isNaN(parseFloat(r[c]))));
+  if (!yCols.length) return null;
+  const labels = rows.map(r => String(r[labelCol] ?? ""));
+  const datasets = yCols.map((c, i) => {
+    const colors = ["#38bdf8", "#fbbf24", "#34d399", "#f472b6", "#a78bfa"];
+    return {
+      label: c,
+      data: rows.map(r => parseFloat(r[c]) || 0),
+      borderColor: colors[i % colors.length],
+      backgroundColor: colors[i % colors.length] + "22",
+      tension: .3,
+      fill: false,
+      pointRadius: 3,
+      borderWidth: 2,
+    };
+  });
+  return {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#c7d2fe", font: { size: 11 } } },
+        tooltip: { backgroundColor: "#0a0f1c" },
+      },
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,.05)" } },
+        y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,.05)" } },
+      },
+    },
+  };
+}
+
+function buildForecastChart(f) {
+  // f: uno de forecasts[]
+  if (!f || !f.forecast) return null;
+  const histLabels = (f.history_months || []).map(m => String(m));
+  const fcLabels = (f.projected_months || []).map(m => String(m));
+  const allLabels = [...histLabels, ...fcLabels];
+  const nHist = histLabels.length;
+  const hist = (f.history_values || []);
+  const fc = f.forecast;
+  const fcAligned = new Array(nHist - 1).fill(null).concat(f.last_historical_value, fc);
+  const u80 = new Array(nHist).fill(null).concat(f.upper_80);
+  const l80 = new Array(nHist).fill(null).concat(f.lower_80);
+  const u95 = new Array(nHist).fill(null).concat(f.upper_95);
+  const l95 = new Array(nHist).fill(null).concat(f.lower_95);
+  return {
+    type: "line",
+    data: {
+      labels: allLabels,
+      datasets: [
+        { label: "Histórico", data: hist, borderColor: "#38bdf8", tension: .3, pointRadius: 2, borderWidth: 2, fill: false },
+        { label: "Punto", data: fcAligned, borderColor: "#fbbf24", borderDash: [6,4], tension: 0, pointRadius: 3, borderWidth: 2, fill: false },
+        { label: "IC 80%", data: u80, borderColor: "transparent", backgroundColor: "rgba(251,191,36,.18)", fill: "+1", pointRadius:0, borderWidth: 0 },
+        { label: "_l80", data: l80, borderColor: "transparent", pointRadius:0, borderWidth: 0, fill: false },
+        { label: "IC 95%", data: u95, borderColor: "transparent", backgroundColor: "rgba(244,114,182,.12)", fill: "+1", pointRadius:0, borderWidth: 0 },
+        { label: "_l95", data: l95, borderColor: "transparent", pointRadius:0, borderWidth: 0, fill: false },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#c7d2fe", font: { size: 11 },
+          filter: (i) => !/^_/.test(i.text) } },
+        title: { display: true, text: "Pronóstico " + (f.metric || ""), color: "#a5d8ff", font: { size: 12 } },
+        tooltip: { backgroundColor: "#0a0f1c" },
+      },
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,.05)" } },
+        y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,.05)" } },
+      },
+    },
+  };
+}
+
+async function sendQuestion(q) {
+  sendBtn.disabled = true; input.value = "";
+  addMsg("user", q.replace(/</g,"&lt;"));
+  addTyping();
+  try {
+    const r = await fetch(API + "/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...NH },
+      body: JSON.stringify({ question: q }),
+    });
+    removeTyping();
+    if (!r.ok) {
+      let detail = "Error " + r.status;
+      try { const e = await r.json(); detail = e.detail || detail; } catch {}
+      const b = addMsg("bot", "<h2>No pude procesar la consulta</h2><p>" + String(detail).replace(/</g,"&lt;") + "</p>");
+      b.classList.add("error");
+      return;
+    }
+    const j = await r.json();
+    // Stats
+    count++; document.getElementById("mCount").textContent = count;
+    if (j.elapsed_s != null) {
+      elapSum += j.elapsed_s;
+      document.getElementById("mAvg").textContent = (elapSum/count).toFixed(1) + "s";
+    }
+    // Bubble con markdown
+    const bub = addMsg("bot", md(j.answer || "(sin respuesta)"));
+    if (j.truncated) {
+      const note = document.createElement("div");
+      note.className = "truncate-note";
+      note.innerHTML = "⚠️ <b>Respuesta parcial:</b> limitada por el máximo de tokens de salida configurado por el desarrollador. Reformulá más específicamente para obtener una respuesta completa.";
+      bub.appendChild(note);
+    }
+    // Panels
+    const panels = document.createElement("div");
+    panels.className = "panels";
+    // SQL + DB
+    if (Array.isArray(j.sql) && j.sql.length) {
+      const dbResults = j.db_results || [];
+      let html = "";
+      j.sql.forEach((s, i) => {
+        html += `<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Consulta #${i+1}</div><pre class="sql-code">${s.replace(/</g,"&lt;")}</pre></div>`;
+        if (dbResults[i]) {
+          html += renderTable(dbResults[i].columns, dbResults[i].rows);
+        }
+      });
+      panels.appendChild(panel("🗄️ Consulta SQL ejecutada y datos (" + j.sql.length + ")", html));
+      // Chart from DB result (ultimo si es temporal/comparativo)
+      const last = dbResults[dbResults.length - 1];
+      if (last) {
+        const cfg = buildChartForDB(last.columns, last.rows);
+        if (cfg) {
+          chartCounter++;
+          const cid = "chDB" + chartCounter;
+          const wrap = document.createElement("div");
+          wrap.className = "chart-wrap";
+          wrap.innerHTML = `<canvas id="${cid}"></canvas>`;
+          const pChart = panel("📈 Gráfico de los datos", "");
+          pChart.querySelector(".pc").appendChild(wrap);
+          panels.appendChild(pChart);
+          setTimeout(() => makeChart(cid, "line", cfg), 50);
+        }
+      }
+    }
+    // Forecasts
+    if (Array.isArray(j.forecasts) && j.forecasts.length) {
+      let html = "<div style='display:flex;flex-wrap:wrap;gap:8px'>";
+      j.forecasts.forEach(f => {
+        if (f.error) { html += `<div style="font-size:12px;color:var(--red)">${f.metric}: ${f.error}</div>`; return; }
+        chartCounter++;
+        const cid = "fc" + chartCounter;
+        html += `<div style="border:1px solid var(--border);border-radius:8px;padding:6px;flex:1;min-width:300px">
+          <div style="font-size:12px;color:#c7d2fe;margin-bottom:6px">Proyección ${f.metric}</div>
+          <div class="chart-wrap"><canvas id="${cid}"></canvas></div></div>`;
+      });
+      html += "</div>";
+      const pFc = panel("🔮 Proyección SARIMAX con intervalos de confianza", html);
+      panels.appendChild(pFc);
+      j.forecasts.forEach(f => {
+        if (f.error) return;
+        const cfg = buildForecastChart(f);
+        chartCounter++;
+        const cid = "fc" + chartCounter;
+        setTimeout(() => makeChart(cid, "line", cfg), 50);
+      });
+    }
+    // Meta
+    const meta = document.createElement("div");
+    meta.className = "meta-row";
+    meta.innerHTML = `<span>⏱ ${j.elapsed_s ?? "—"}s</span>` +
+      (j.tool_calls && j.tool_calls.length ? `<span>🛠 ${j.tool_calls.length} herramienta(s): ${j.tool_calls.map(t=>t.name).join(", ")}</span>` : "") +
+      (j.finish_reason ? `<span>fin: <b>${j.finish_reason}</b></span>` : "");
+    bub.appendChild(meta);
+    if (panels.children.length) bub.appendChild(panels);
+    // Auto-abrir el primer panel de datos para impacto visual
+    const firstPanel = panels.querySelector(".panel");
+    if (firstPanel) firstPanel.classList.add("open");
+    log.scrollTop = log.scrollHeight;
+  } catch (e) {
+    removeTyping();
+    const b = addMsg("bot", "<h2>No pude conectar con el servidor</h2><p>Verificá que el backend esté corriendo. Detalle: " + String(e).replace(/</g,"&lt;") + "</p>");
+    b.classList.add("error");
+  } finally {
+    sendBtn.disabled = false; input.focus();
+  }
+}
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const q = input.value.trim();
+  if (q) sendQuestion(q);
+});
+document.getElementById("chips").addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (chip) sendQuestion(chip.textContent.replace(/^\w+\s*/, ""));
+});
+</script>
+</body>
+</html>

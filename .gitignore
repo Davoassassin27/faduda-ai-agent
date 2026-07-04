@@ -1,0 +1,16 @@
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+.env
+schema_dump.json
+_inspect.py
+*.log
+_ngrok.*
+_server.*
+.DS_Store
+.idea/
+.vscode/
+*.db
