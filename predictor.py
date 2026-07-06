@@ -285,7 +285,11 @@ def forecast_metrics(metrics: list[str], periods: int = 1) -> dict[str, Any]:
     Forecast de varias metricas en una sola invocacion (batched).
 
     Cachea por 5 minutos por (tuple(metrics_sorted), periods) para evitar
-    recomputar al repreguntar. Devuelve:
+    recomputar al repreguntar. El lock se sostiene SOLO al leer/escribir
+    el cache; el trabajo pesado (MySQL + SARIMAX) corre sin lock para
+    evitar deadlock y no serializar requests concurrentes.
+
+    Devuelve:
 
       {
         "forecasts": [ {...}, {...}, ... ],   # uno por metrica
@@ -300,55 +304,61 @@ def forecast_metrics(metrics: list[str], periods: int = 1) -> dict[str, Any]:
         raise ValueError("No se especificaron metricas.")
 
     key = (tuple(sorted(metrics)), periods)
-    now = _time.time()
+
+    # 1) Lectura de cache (lock breve)
     with _FC_LOCK:
         cached = _FC_CACHE.get(key)
-        if cached and now - cached["ts"] < _FC_TTL:
+        if cached and _time.time() - cached["ts"] < _FC_TTL:
             return {"forecasts": cached["payload"], "periods": periods,
                     "disclaimer": cached["disclaimer"], "cached": True}
-        forecasts = []
-        for m in metrics:
-            try:
-                serie = load_monthly_series(m)
-                res = forecast_sarimax(serie, periods=periods)
-                last_period = serie.index[-1]
-                future_periods = [str((last_period + i).to_timestamp().strftime("%Y-%m"))
-                                  for i in range(1, periods + 1)]
-                res.update({
-                    "metric": m,
-                    "periods": periods,
-                    "projected_months": future_periods,
-                    "last_historical_value": float(serie.values[-1]),
-                    "last_historical_month": str(last_period),
-                    # historico para graficar (desde load_monthly_series por mes)
-                    "history_months": [str(p) for p in serie.index],
-                    "history_values": [float(v) for v in serie.values],
-                })
-                n = res["n_history"]
-                if n < 12:
-                    res["disclaimer"] = (
-                        f"Forecast sobre {n} meses (menos de 12): indicativo, no "
-                        f"accionable. Modela tendencia pero no estacionalidad."
-                    )
-                else:
-                    res["disclaimer"] = (
-                        f"Modelo {res['method']} sobre {n} meses. Los intervalos "
-                        f"reflejan incertidumbre; el valor real puede caer fuera "
-                        f"del 80% ante cambios estructurales del mercado."
-                    )
-                forecasts.append(res)
-            except Exception as e:
-                forecasts.append({"metric": m, "error": str(e)})
 
-        disclaimer = (
-            "Pronostico estadistico SARIMAX. Los intervalos de confianza "
-            "expresan incertidumbre real; tratar como informacion de apoyo, "
-            "no como orden automatica."
-        )
-        with _FC_LOCK:
-            _FC_CACHE[key] = {"payload": forecasts, "ts": now, "disclaimer": disclaimer}
+    # 2) Trabajo pesado SIN lock (MySQL + SARIMAX)
+    forecasts: list[dict[str, Any]] = []
+    for m in metrics:
+        try:
+            serie = load_monthly_series(m)
+            res = forecast_sarimax(serie, periods=periods)
+            last_period = serie.index[-1]
+            future_periods = [str((last_period + i).to_timestamp().strftime("%Y-%m"))
+                              for i in range(1, periods + 1)]
+            res.update({
+                "metric": m,
+                "periods": periods,
+                "projected_months": future_periods,
+                "last_historical_value": float(serie.values[-1]),
+                "last_historical_month": str(last_period),
+                "history_months": [str(p) for p in serie.index],
+                "history_values": [float(v) for v in serie.values],
+            })
+            n = res["n_history"]
+            if n < 12:
+                res["disclaimer"] = (
+                    f"Forecast sobre {n} meses (menos de 12): indicativo, no "
+                    f"accionable. Modela tendencia pero no estacionalidad."
+                )
+            else:
+                res["disclaimer"] = (
+                    f"Modelo {res['method']} sobre {n} meses. Los intervalos "
+                    f"reflejan incertidumbre; el valor real puede caer fuera "
+                    f"del 80% ante cambios estructurales del mercado."
+                )
+            forecasts.append(res)
+        except Exception as e:
+            forecasts.append({"metric": m, "error": str(e)})
 
-    return {"forecasts": forecasts, "periods": periods, "disclaimer": disclaimer, "cached": False}
+    disclaimer = (
+        "Pronostico estadistico SARIMAX. Los intervalos de confianza "
+        "expresan incertidumbre real; tratar como informacion de apoyo, "
+        "no como orden automatica."
+    )
+
+    # 3) Escritura de cache (lock breve)
+    with _FC_LOCK:
+        _FC_CACHE[key] = {"payload": forecasts, "ts": _time.time(),
+                          "disclaimer": disclaimer}
+
+    return {"forecasts": forecasts, "periods": periods,
+            "disclaimer": disclaimer, "cached": False}
 
 
 if __name__ == "__main__":

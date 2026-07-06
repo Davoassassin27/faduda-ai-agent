@@ -240,7 +240,7 @@ def chat(question: str) -> dict[str, Any]:
 
     for attempt in range(3):
         try:
-            response = session.send_message(question)
+            response = session.send_message(question, request_options={"timeout": 90})
             # Captura finish_reason para detectar truncamiento por MAX_TOKENS
             finish_reason = None
             candidates = getattr(response, "candidates", []) or []
@@ -260,7 +260,11 @@ def chat(question: str) -> dict[str, Any]:
                     fc = getattr(part, "function_call", None)
                     fr = getattr(part, "function_response", None)
                     if fc is not None and getattr(fc, "name", ""):
-                        args = dict(fc.args) if fc.args else {}
+                        try:
+                            args = json.loads(json.dumps(
+                                dict(fc.args), default=str))
+                        except Exception:
+                            args = {}
                         tool_calls.append({"name": fc.name, "args": args})
                         if fc.name == "execute_sql":
                             sql_text = args.get("sql_query", "")
@@ -274,6 +278,8 @@ def chat(question: str) -> dict[str, Any]:
                             mtrics = args.get("metrics") or []
                             if isinstance(mtrics, (int, float)):
                                 mtrics = [str(mtrics)]
+                            elif isinstance(mtrics, str):
+                                mtrics = [m.strip() for m in mtrics.split(",") if m.strip()]
                             try:
                                 fres = predictor.forecast_metrics(
                                     list(mtrics), int(args.get("periods") or 1))
