@@ -184,7 +184,7 @@ def run_pipeline(wc_cfg: cfg.WooCommerceConfig) -> dlt.LoadInfo:
     """
     pipeline = dlt.pipeline(
         pipeline_name="woocommerce_sync",
-        destination="duckdb",
+        destination=dlt.destinations.duckdb(credentials="woocommerce_sync.duckdb"),
         dataset_name="fadua_products",
         progress="log",
     )
@@ -208,11 +208,12 @@ def get_loaded_products() -> list[dict[str, Any]]:
     Retorna lista de dicts planos para escribir en Google Sheets.
     """
     try:
-        import duckdb, os
-        pipe = dlt.pipeline("woocommerce_sync")
-        local_dir = pipe.destination.config_params.get("local_dir", ".")
-        db_file = os.path.join(local_dir, f"{pipe.pipeline_name}.duckdb")
-        con = duckdb.connect(db_file)
+        import duckdb
+        pipe = dlt.pipeline(
+            "woocommerce_sync",
+            destination=dlt.destinations.duckdb(credentials="woocommerce_sync.duckdb"),
+        )
+        con = duckdb.connect("woocommerce_sync.duckdb")
         schema = pipe.dataset_name
         rows = con.execute(
             f'SELECT id, name, price, regular_price, sale_price, '

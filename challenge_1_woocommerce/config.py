@@ -97,7 +97,7 @@ class AppConfig:
     wc: WooCommerceConfig
     gsheets: GoogleSheetsConfig
     email: EmailConfig
-    interval_minutes: int = 5
+    interval_minutes: int = 2
 
     @classmethod
     def load(cls) -> "AppConfig":
