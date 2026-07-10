@@ -3,17 +3,23 @@ Streamlit page — Challenge 2: Autonomous Google Forms Agent
 """
 import sys
 import os
-import json
-import glob
 import subprocess
-import time
 from pathlib import Path
 
 import streamlit as st
 
-# Add challenge dir to path
 _ch2_dir = Path(__file__).resolve().parent.parent / "challenge_2_agent"
+
+# Asegurar path limpio (eliminar otros challenges + cache de módulos)
+sys.path = [p for p in sys.path if 'challenge' not in p.lower()]
+for mod in list(sys.modules.keys()):
+    if any(x in mod for x in ['config', 'sheet_reader', 'field_mapper', 'browser_agent',
+                               'challenge_1', 'challenge_2', 'dlt_pipeline', 'sheets_sync']):
+        del sys.modules[mod]
 sys.path.insert(0, str(_ch2_dir))
+
+from config import AppConfig
+from sheet_reader import SheetReader
 
 st.set_page_config(
     page_title="Google Forms Agent",
@@ -27,9 +33,9 @@ st.markdown(
     "automáticamente desde Google Sheets."
 )
 
+CONFIG_OK = True
 try:
-    import config as cfg
-    CONFIG_OK = True
+    app_cfg = AppConfig.load()
 except Exception as e:
     CONFIG_OK = False
     cfg_error = str(e)
@@ -37,20 +43,14 @@ except Exception as e:
 with st.sidebar:
     st.markdown("### ⚙️ Configuración")
     if CONFIG_OK:
-        try:
-            app_cfg = cfg.AppConfig.load()
-            st.success("Configuración cargada")
-            st.code(
-                f"Form 1: {app_cfg.forms.form_1_url[:40]}...\n"
-                f"Form 2: {app_cfg.forms.form_2_url[:40]}...\n"
-                f"Sheet ID: {app_cfg.sheets.spreadsheet_id[:20]}...\n"
-                f"Gemini: {'✓' if app_cfg.gemini.configured else '✗'}",
-            )
-        except Exception as e:
-            st.error(f"Error: {e}")
+        st.success("Configuración cargada")
+        st.code(
+            f"Form 1: {app_cfg.forms.form_1_url[:40]}...\n"
+            f"Form 2: {app_cfg.forms.form_2_url[:40]}...\n"
+            f"Gemini: {'✓' if app_cfg.gemini.configured else '✗'}",
+        )
     else:
         st.error(f"Error: {cfg_error}")
-
     st.divider()
     st.caption("Desarrollado por David Soler")
 
@@ -62,11 +62,9 @@ tab1, tab2, tab3 = st.tabs([
 
 with tab1:
     st.markdown("## Datos desde Google Sheets")
-
     if CONFIG_OK:
         with st.spinner("Leyendo datos..."):
             try:
-                from sheet_reader import SheetReader
                 reader = SheetReader(app_cfg.sheets)
                 data = reader.get_structured_data()
 
@@ -93,18 +91,14 @@ with tab2:
     st.markdown("## Formularios")
 
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown("### Formulario 1 — Ventas")
         st.markdown(
             "Campos:\n"
-            "- ID del Cliente\n"
-            "- Nombre Completo\n"
-            "- Correo Electrónico\n"
-            "- Teléfono de Contacto\n"
+            "- ID del Cliente  |  Nombre Completo\n"
+            "- Correo Electrónico  |  Teléfono\n"
             "- Modelo de Automóvil *(listbox)*\n"
-            "- Valor Total del Vehículo\n"
-            "- Tipo de Financiación\n\n"
+            "- Valor Total  |  Tipo de Financiación\n\n"
             "4 páginas con navegación automática."
         )
         st.link_button("🔗 Abrir Form 1", app_cfg.forms.form_1_url)
@@ -113,20 +107,15 @@ with tab2:
         st.markdown("### Formulario 2 — Mora")
         st.markdown(
             "Campos:\n"
-            "- ID de Cliente Asociado\n"
-            "- Nombre del Cliente\n"
-            "- Valor del Vehículo\n"
-            "- Tipo Financiación\n"
-            "- Estado de Cuenta Actual\n"
-            "- Días de Atraso\n"
-            "- Monto del Último Pago\n"
-            "- Requiere Acción de Cobranza\n\n"
+            "- ID Cliente  |  Nombre\n"
+            "- Valor Vehículo  |  Tipo Financiación\n"
+            "- Estado Cuenta  |  Días Atraso\n"
+            "- Último Pago  |  Acción Legal\n\n"
             "1 página, envío directo."
         )
         st.link_button("🔗 Abrir Form 2", app_cfg.forms.form_2_url)
 
     st.divider()
-
     st.markdown("### Ejecutar Agente")
 
     run_form = st.radio(
@@ -159,22 +148,16 @@ with tab2:
             cmd.append("--dry-run")
         cmd = [c for c in cmd if c]
 
-        with st.status(f"Ejecutando agente: {' '.join(cmd)}", expanded=True) as status:
+        with st.status(f"Ejecutando agente...", expanded=True) as status:
             try:
                 result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                    cwd=str(_ch2_dir),
+                    cmd, capture_output=True, text=True,
+                    timeout=300, cwd=str(_ch2_dir),
                 )
                 if result.stdout:
                     st.text(result.stdout[-3000:])
                 if result.returncode == 0:
-                    status.update(
-                        label="✅ Agente completado exitosamente",
-                        state="complete",
-                    )
+                    status.update(label="✅ Agente completado", state="complete")
                 else:
                     status.update(label="❌ Agente falló", state="error")
                     if result.stderr:
@@ -197,6 +180,6 @@ with tab3:
                 with cols[i % 3]:
                     st.image(str(img_path), caption=img_path.name, use_container_width=True)
         else:
-            st.info("No hay capturas. Ejecuta el agente para generar capturas.")
+            st.info("No hay capturas. Ejecuta el agente.")
     else:
         st.info("Ejecuta el agente para generar capturas.")
