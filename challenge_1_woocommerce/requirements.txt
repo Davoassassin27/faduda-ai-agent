@@ -1,0 +1,7 @@
+dlt>=1.0.0
+woocommerce>=2.1.1
+gspread>=6.1.0
+oauth2client>=4.1.3
+duckdb>=1.0.0
+python-dotenv>=1.0.0
+rich>=13.0.0

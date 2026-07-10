@@ -14,3 +14,11 @@ _server.*
 .idea/
 .vscode/
 *.db
+
+# Challenge secrets
+service_account.json
+challenge_1_woocommerce/.last_count
+challenge_2_agent/_screenshots/
+
+# OS artifacts
+Thumbs.db

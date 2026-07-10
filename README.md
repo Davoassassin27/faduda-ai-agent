@@ -231,10 +231,34 @@ Keep your machine running. The URL changes each restart on free plan.
 
 ---
 
-## License
+## Challenges Adicionales
 
-MIT — built for the FADUA / Grupo Yumak interview process.
+### Challenge 1 — WooCommerce → Google Sheets ([ver README](challenge_1_woocommerce/README.md))
+
+Pipeline **dlt** que extrae productos desde la API REST de WooCommerce cada 5 minutos, los normaliza en DuckDB y los sincroniza a Google Sheets con notificación por email.
+
+```bash
+cd challenge_1_woocommerce
+python scheduler.py          # TUI dashboard
+python scheduler.py --daemon # loop infinito
+```
+
+### Challenge 2 — Agente Autónomo Google Forms ([ver README](challenge_2_agent/README.md))
+
+Agente con **Playwright** + **Gemini RAG** que lee datos desde Google Sheets y completa formularios web automáticamente, con captura de pantalla por registro.
+
+```bash
+cd challenge_2_agent
+python agent.py              # TUI dashboard
+python agent.py --visible    # debug con navegador
+```
 
 ---
 
-*Desarrollado por David Soler*
+## License
+
+MIT — Copyright © 2026 David Soler. See [LICENSE](LICENSE).
+
+---
+
+*Desarrollado por David Soler — [GitHub](https://github.com/Davoassassin27/faduda-ai-agent)*
