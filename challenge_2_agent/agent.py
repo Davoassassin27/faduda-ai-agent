@@ -395,9 +395,10 @@ class FormAgent:
             print(f"    Enviados:   {fr['records_sent']}")
             print(f"    Fallidos:   {fr['records_failed']}")
             for m in fr.get("mappings", []):
+                ff = m.get("form_field") or "?"
                 col = m.get("sheet_column", "—")
-                conf = m.get("confidence", 0)
-                print(f"      -> {m['form_field'][:35]:35s} -> {col:20s} (conf: {conf:.0%})")
+                conf = m.get("confidence", 0) or 0
+                print(f"      -> {ff[:35]:35s} -> {col:20s} (conf: {conf:.0%})")
         print("=" * 60)
 
 

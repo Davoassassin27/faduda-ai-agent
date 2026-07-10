@@ -257,11 +257,10 @@ class AgentTUI:
             "done": "✓",
         }
         icon = icons.get(self._phase, "?")
-        text = Text.assemble(
-            (f" {icon}  ", "bold"),
-            (self._phase.upper(), "bold cyan"),
-            (f"  —  {self._phase_detail}", ""),
-        )
+        parts = [Text(f" {icon}  ", style="bold"),
+                 Text(self._phase.upper(), style="bold cyan"),
+                 Text(f"  —  {self._phase_detail}")]
+        text = Text("").join(parts)
         return Panel(text, box=box.SQUARE, border_style="bright_blue")
 
     def _fields_panel(self) -> Panel:
@@ -318,16 +317,19 @@ class AgentTUI:
 
         g = Group(
             prog,
-            Text.assemble(
-                ("  ", ""),
-                *[ (c, "") for c in status_chars ],
-            ),
+            Text("  ").join(status_chars),
         )
-        summary = Text.assemble(
-            (f"{ok_count}/{total} ", "bold green"),
-            ("enviados", "dim"),
-            (f"  ({done - ok_count} fallidos)", "red") if done > ok_count else Text(),
-        )
+        if done > ok_count:
+            summary = Text.assemble(
+                (f"{ok_count}/{total} ", "bold green"),
+                ("enviados", "dim"),
+                (f"  ({done - ok_count} fallidos)", "red"),
+            )
+        else:
+            summary = Text.assemble(
+                (f"{ok_count}/{total} ", "bold green"),
+                ("enviados", "dim"),
+            )
         return Panel(Group(g, summary), title=" Registros ", box=box.SQUARE, border_style="bright_magenta")
 
     def _errors_panel(self) -> Panel:

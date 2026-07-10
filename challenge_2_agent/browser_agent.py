@@ -171,6 +171,28 @@ class BrowserAgent:
 
         seen_labels = set()
 
+        _PLACEHOLDER_TEXTS = {"elegir", "seleccionar", "seleccione", "choose", "select", ""}
+
+        def _select_first_real_option(lb) -> bool:
+            """Click the first non-placeholder option in a listbox."""
+            try:
+                lb.click()
+                self._page.wait_for_timeout(500)
+                opts = self._page.query_selector_all('[role="option"]')
+                for o in opts:
+                    txt = (o.text_content() or "").strip()
+                    ad = o.get_attribute("aria-disabled")
+                    if ad == "true":
+                        continue
+                    if txt.lower() in _PLACEHOLDER_TEXTS:
+                        continue
+                    o.click()
+                    self._page.wait_for_timeout(300)
+                    return True
+            except Exception:
+                pass
+            return False
+
         def _fill_visible():
             """Llena todos los inputs visibles con datos temporales."""
             for inp in self._page.query_selector_all('input[type="text"], input[type="email"], input[type="tel"]'):
@@ -179,21 +201,8 @@ class BrowserAgent:
                         inp.fill("_tmp_")
                 except Exception:
                     pass
-            # Dropdowns: seleccionar primera opción válida
             for lb in self._page.query_selector_all('[role="listbox"]'):
-                try:
-                    lb.click()
-                    self._page.wait_for_timeout(300)
-                    opts = self._page.query_selector_all('[role="option"]')
-                    for o in opts:
-                        ad = o.get_attribute("aria-disabled")
-                        if ad and ad == "true":
-                            continue
-                        o.click()
-                        self._page.wait_for_timeout(300)
-                        break
-                except Exception:
-                    pass
+                _select_first_real_option(lb)
 
         try:
             for page_idx in range(20):
@@ -204,9 +213,10 @@ class BrowserAgent:
                         const heading = q.querySelector('[role="heading"]');
                         if (!heading) continue;
                         const label = (heading.textContent || '').replace(/\\s*\\*\\s*$/, '').trim();
-                        const input = q.querySelector('input:not([type="hidden"]), textarea');
-                        if (!input) continue;
-                        result.push({ label });
+                        const hasInput = q.querySelector('input:not([type="hidden"]), textarea, [role="listbox"]');
+                        if (!hasInput) continue;
+                        const ftype = q.querySelector('[role="listbox"]') ? 'listbox' : 'text';
+                        result.push({ label, type: ftype });
                     }
                     return result;
                 }""")
@@ -216,7 +226,7 @@ class BrowserAgent:
                         fields.append({
                             "index": len(fields),
                             "label": r["label"],
-                            "type": "text",
+                            "type": r.get("type", "text"),
                             "required": True,
                         })
 
@@ -351,20 +361,38 @@ class BrowserAgent:
                 listbox.click()
                 self._page.wait_for_timeout(500)
                 opts = self._page.query_selector_all('[role="option"]')
+                # 1) Try exact match
                 for o in opts:
                     txt = (o.text_content() or "").strip()
                     ad = o.get_attribute("aria-disabled")
-                    if txt.lower() == value.lower() and ad != "true":
+                    if ad == "true":
+                        continue
+                    if txt.lower() == value.lower():
                         o.click()
                         self._page.wait_for_timeout(300)
                         return True
-                # Fallback: click first valid option
+                # 2) Try partial match (value is substring of option)
                 for o in opts:
+                    txt = (o.text_content() or "").strip()
                     ad = o.get_attribute("aria-disabled")
-                    if ad != "true":
+                    if ad == "true":
+                        continue
+                    if value.lower() in txt.lower() or txt.lower() in value.lower():
                         o.click()
                         self._page.wait_for_timeout(300)
                         return True
+                # 3) Fallback: first non-placeholder option
+                placeholders = {"elegir", "seleccionar", "seleccione", "choose", "select", ""}
+                for o in opts:
+                    txt = (o.text_content() or "").strip()
+                    ad = o.get_attribute("aria-disabled")
+                    if ad == "true":
+                        continue
+                    if txt.lower() in placeholders:
+                        continue
+                    o.click()
+                    self._page.wait_for_timeout(300)
+                    return True
             return False
         except Exception as e:
             logger.warning("Error llenando input: %s", e)
